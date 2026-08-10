@@ -27,6 +27,7 @@ public class AsyncConfig {
 
     private static final int MVC_ASYNC_QUEUE_CAPACITY = 512;
     private static final int AGENT_WORKSPACE_MIGRATION_QUEUE_CAPACITY = 8;
+    private static final int COMFYUI_WORKFLOW_TEST_QUEUE_CAPACITY = 20;
 
     /**
      * ffmpeg 合成任务最大并发数。
@@ -73,6 +74,20 @@ public class AsyncConfig {
 
         log.info("[AsyncConfig] MVC 异步执行器: corePoolSize={}, maxPoolSize={}, queueCapacity={}",
                 corePoolSize, maxPoolSize, MVC_ASYNC_QUEUE_CAPACITY);
+        return executor;
+    }
+
+    /**
+     * ComfyUI 工作流试运行可能持续数十分钟，必须与 MVC 请求异步线程池隔离。
+     */
+    @Bean(name = "comfyUiWorkflowTestExecutor")
+    public ThreadPoolTaskExecutor comfyUiWorkflowTestExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(2);
+        executor.setQueueCapacity(COMFYUI_WORKFLOW_TEST_QUEUE_CAPACITY);
+        executor.setThreadNamePrefix("comfyui-workflow-test-");
+        executor.setWaitForTasksToCompleteOnShutdown(false);
         return executor;
     }
 

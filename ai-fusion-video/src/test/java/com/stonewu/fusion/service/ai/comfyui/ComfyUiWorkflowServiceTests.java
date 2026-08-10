@@ -127,6 +127,37 @@ class ComfyUiWorkflowServiceTests {
     }
 
     @Test
+    void startExecutionTestStoresRunningStateAndPromptId() {
+        ComfyUiWorkflowVersion version = ComfyUiWorkflowVersion.builder()
+                .id(21L)
+                .testStatus(ComfyUiWorkflowVersion.TEST_PENDING)
+                .build();
+        when(versionMapper.selectById(21L)).thenReturn(version);
+
+        service.recordExecutionTestStarted(21L, "8fe7fe43-7d1c-4a4c-b521-c4a5f0b0d344");
+
+        assertThat(version.getTestStatus()).isEqualTo(ComfyUiWorkflowVersion.TEST_RUNNING);
+        assertThat(version.getTestPromptId()).isEqualTo("8fe7fe43-7d1c-4a4c-b521-c4a5f0b0d344");
+        assertThat(version.getTestStartedAt()).isNotNull();
+        assertThat(version.getTestMessage()).contains("正在等待执行完成");
+        verify(versionMapper).updateById(version);
+    }
+
+    @Test
+    void startExecutionTestRejectsDuplicateRunningRequest() {
+        ComfyUiWorkflowVersion version = ComfyUiWorkflowVersion.builder()
+                .id(21L)
+                .testStatus(ComfyUiWorkflowVersion.TEST_RUNNING)
+                .build();
+        when(versionMapper.selectById(21L)).thenReturn(version);
+
+        assertThatThrownBy(() -> service.recordExecutionTestStarted(
+                21L, "8fe7fe43-7d1c-4a4c-b521-c4a5f0b0d344"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("正在试运行");
+    }
+
+    @Test
     void validateModelBindingRequiresSamePublishedWorkflowAndApiConfig() {
         ApiConfig apiConfig = ApiConfig.builder()
                 .id(7L)

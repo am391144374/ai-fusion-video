@@ -157,10 +157,17 @@ public class ComfyUiWorkflowController {
     }
 
     @PostMapping("/version/test")
-    @Operation(summary = "在目标 ComfyUI 实例试运行工作流版本")
+    @Operation(summary = "异步提交目标 ComfyUI 工作流版本试运行")
     public CommonResult<ComfyUiWorkflowTestRespVO> testVersion(
             @Valid @RequestBody ComfyUiWorkflowTestReqVO request) {
-        return success(validationService.testVersion(
+        return success(validationService.startTestVersion(
                 request.getVersionId(), request.getInputs()));
+    }
+
+    @GetMapping("/version/test-result")
+    @Operation(summary = "查询 ComfyUI 工作流版本试运行结果")
+    public CommonResult<ComfyUiWorkflowTestRespVO> getTestResult(
+            @RequestParam("versionId") Long versionId) {
+        return success(validationService.getTestResult(versionId));
     }
 }

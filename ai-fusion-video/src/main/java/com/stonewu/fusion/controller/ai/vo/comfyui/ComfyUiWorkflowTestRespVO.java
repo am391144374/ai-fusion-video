@@ -9,6 +9,7 @@ import java.util.List;
 @Builder
 public class ComfyUiWorkflowTestRespVO {
 
+    boolean running;
     boolean passed;
     String promptId;
     long durationMillis;

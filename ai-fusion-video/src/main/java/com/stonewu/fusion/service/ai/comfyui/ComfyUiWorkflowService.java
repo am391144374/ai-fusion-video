@@ -190,6 +190,10 @@ public class ComfyUiWorkflowService {
         version.setValidationMessage(null);
         version.setTestStatus(ComfyUiWorkflowVersion.TEST_PENDING);
         version.setTestMessage(null);
+        version.setTestPromptId(null);
+        version.setTestStartedAt(null);
+        version.setTestDurationMillis(null);
+        version.setTestOutputsJson(null);
         version.setLastTestTime(null);
         versionMapper.updateById(version);
     }
@@ -240,12 +244,35 @@ public class ComfyUiWorkflowService {
 
     @Transactional
     @CacheEvict(value = {"comfyUiWorkflow", "comfyUiWorkflowVersion"}, allEntries = true)
-    public void recordExecutionTest(Long versionId, boolean passed, String message) {
+    public void recordExecutionTestStarted(Long versionId, String promptId) {
+        ComfyUiWorkflowVersion version = requireVersion(versionId);
+        if (Integer.valueOf(ComfyUiWorkflowVersion.TEST_RUNNING).equals(version.getTestStatus())) {
+            throw new BusinessException(409, "ComfyUI 工作流正在试运行");
+        }
+        version.setTestStatus(ComfyUiWorkflowVersion.TEST_RUNNING);
+        version.setTestMessage("已提交 ComfyUI，正在等待执行完成");
+        version.setTestPromptId(promptId);
+        version.setTestStartedAt(LocalDateTime.now());
+        version.setTestDurationMillis(null);
+        version.setTestOutputsJson(null);
+        version.setLastTestTime(null);
+        versionMapper.updateById(version);
+    }
+
+    @Transactional
+    @CacheEvict(value = {"comfyUiWorkflow", "comfyUiWorkflowVersion"}, allEntries = true)
+    public void recordExecutionTest(Long versionId,
+                                    boolean passed,
+                                    String message,
+                                    long durationMillis,
+                                    String outputsJson) {
         ComfyUiWorkflowVersion version = requireVersion(versionId);
         version.setTestStatus(passed
                 ? ComfyUiWorkflowVersion.TEST_PASSED
                 : ComfyUiWorkflowVersion.TEST_FAILED);
         version.setTestMessage(StrUtil.trim(message));
+        version.setTestDurationMillis(Math.max(0L, durationMillis));
+        version.setTestOutputsJson(outputsJson);
         version.setLastTestTime(LocalDateTime.now());
         versionMapper.updateById(version);
     }

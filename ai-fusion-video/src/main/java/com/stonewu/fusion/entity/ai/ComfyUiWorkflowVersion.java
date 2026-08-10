@@ -29,6 +29,7 @@ public class ComfyUiWorkflowVersion extends BaseEntity {
     public static final int TEST_PENDING = 0;
     public static final int TEST_PASSED = 1;
     public static final int TEST_FAILED = 2;
+    public static final int TEST_RUNNING = 3;
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -58,6 +59,18 @@ public class ComfyUiWorkflowVersion extends BaseEntity {
     private Integer testStatus = TEST_PENDING;
 
     private String testMessage;
+
+    /** 当前试运行对应的 ComfyUI prompt 标识。 */
+    private String testPromptId;
+
+    /** 当前或最近一次试运行开始时间。 */
+    private LocalDateTime testStartedAt;
+
+    /** 最近一次试运行耗时（毫秒）。 */
+    private Long testDurationMillis;
+
+    /** 最近一次试运行保存结果的 JSON。 */
+    private String testOutputsJson;
 
     private LocalDateTime lastTestTime;
 

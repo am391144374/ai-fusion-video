@@ -97,6 +97,7 @@ export interface ComfyUiStoredOutput {
 }
 
 export interface ComfyUiWorkflowTestResult {
+  running: boolean;
   passed: boolean;
   promptId: string | null;
   durationMillis: number;
@@ -155,10 +156,14 @@ export const comfyUiWorkflowApi = {
       `/api/ai/comfyui/workflow/version/validate?versionId=${versionId}`,
     ),
   testVersion: (versionId: number, inputs: Record<string, unknown>) =>
-    http.post<never, ComfyUiWorkflowTestResult>("/api/ai/comfyui/workflow/version/test", {
-      versionId,
-      inputs,
-    }),
+    http.post<never, ComfyUiWorkflowTestResult>(
+      "/api/ai/comfyui/workflow/version/test",
+      { versionId, inputs },
+    ),
+  getTestResult: (versionId: number) =>
+    http.get<never, ComfyUiWorkflowTestResult>(
+      `/api/ai/comfyui/workflow/version/test-result?versionId=${versionId}`,
+    ),
   publish: (workflowId: number, versionId: number) =>
     http.post<never, boolean>(
       `/api/ai/comfyui/workflow/publish?workflowId=${workflowId}&versionId=${versionId}`,

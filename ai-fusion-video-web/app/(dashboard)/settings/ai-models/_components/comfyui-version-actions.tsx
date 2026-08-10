@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ExternalLink, FileText, FlaskConical, Loader2, Rocket, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -104,6 +104,45 @@ export function ComfyUiVersionActions({ workflow, version, onUpdated }: ComfyUiV
   const [testValues, setTestValues] = useState<Record<string, string>>({ prompt: "一张电影感的测试画面" });
   const [testRun, setTestRun] = useState<{ versionId: number; result: ComfyUiWorkflowTestResult } | null>(null);
 
+  useEffect(() => {
+    if (!version || version.testStatus !== 3) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    // 步骤一：试运行已在服务端后台执行，前端仅用短请求定时获取最终状态。
+    const pollTestResult = async () => {
+      try {
+        const result = await comfyUiWorkflowApi.getTestResult(version.id);
+        if (cancelled) return;
+        setTestRun({ versionId: version.id, result });
+        if (result.running) {
+          timer = setTimeout(pollTestResult, 2_000);
+          return;
+        }
+
+        // 步骤二：任务结束后刷新版本状态，再展示一次明确的成功或失败反馈。
+        await onUpdated();
+        if (result.passed) {
+          toast.success("试运行成功", {
+            description: `生成 ${result.outputs.length} 个结果，耗时 ${result.durationMillis}ms`,
+          });
+        } else {
+          toast.error("试运行失败", { description: result.message });
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.error("查询 ComfyUI 试运行结果失败:", error);
+        timer = setTimeout(pollTestResult, 5_000);
+      }
+    };
+
+    timer = setTimeout(pollTestResult, 2_000);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [onUpdated, version]);
+
   const testFields = useMemo(() => {
     if (!version) return [];
     try {
@@ -155,11 +194,7 @@ export function ComfyUiVersionActions({ workflow, version, onUpdated }: ComfyUiV
     try {
       const result = await comfyUiWorkflowApi.testVersion(version.id, buildInputs());
       setTestRun({ versionId: version.id, result });
-      if (result.passed) {
-        toast.success("试运行成功", { description: `生成 ${result.outputs.length} 个结果，耗时 ${result.durationMillis}ms` });
-      } else {
-        toast.error("试运行失败", { description: result.message });
-      }
+      toast.info("已提交试运行", { description: "ComfyUI 正在后台处理，结果会自动刷新。" });
       await onUpdated();
     } catch (error) {
       toastApiError(error, "试运行失败");
@@ -209,7 +244,7 @@ export function ComfyUiVersionActions({ workflow, version, onUpdated }: ComfyUiV
         </div>
         <div className="rounded-lg border border-border/20 bg-background/70 p-3">
           <p className="text-xs text-muted-foreground">试运行</p>
-          <p className="mt-1 text-sm font-medium">{statusLabel(version.testStatus, "已成功", "失败", "未运行")}</p>
+          <p className="mt-1 text-sm font-medium">{version.testStatus === 3 ? "试运行中" : statusLabel(version.testStatus, "已成功", "失败", "未运行")}</p>
           {version.testMessage && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{version.testMessage}</p>}
         </div>
       </div>
@@ -276,9 +311,9 @@ export function ComfyUiVersionActions({ workflow, version, onUpdated }: ComfyUiV
           {running === "validate" ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
           在线校验
         </Button>
-        <Button variant="secondary" size="sm" onClick={test} disabled={running !== null || version.validationStatus !== 1}>
-          {running === "test" ? <Loader2 className="animate-spin" /> : <FlaskConical />}
-          试运行
+        <Button variant="secondary" size="sm" onClick={test} disabled={running !== null || version.validationStatus !== 1 || version.testStatus === 3}>
+          {running === "test" || version.testStatus === 3 ? <Loader2 className="animate-spin" /> : <FlaskConical />}
+          {version.testStatus === 3 ? "试运行中" : "试运行"}
         </Button>
         <Button size="sm" onClick={publish} disabled={running !== null || !publishReady || isActive}>
           {running === "publish" ? <Loader2 className="animate-spin" /> : <Rocket />}
