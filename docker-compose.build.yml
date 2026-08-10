@@ -47,6 +47,7 @@ services:
 
   # ---------- 后端 (本地构建) ----------
   backend:
+    pull_policy: build
     build:
       context: ./ai-fusion-video
       dockerfile: Dockerfile
@@ -79,6 +80,7 @@ services:
 
   # ---------- 前端 (本地构建) ----------
   frontend:
+    pull_policy: build
     build:
       context: ./ai-fusion-video-web
       dockerfile: Dockerfile
