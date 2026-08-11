@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { resolveMediaUrl } from "@/lib/api/client";
 import type { StoryboardFrameType, StoryboardItem } from "@/lib/api/storyboard";
 import { SafeImage } from "@/components/ui/safe-image";
+import { StoryboardVideoUploadButton } from "./storyboard-video-upload-button";
 import {
   DndContext,
   closestCenter,
@@ -45,6 +46,7 @@ const CardItemUI = memo(
       onSelect?: () => void;
       onDelete?: (itemId: number) => void;
       onVideoGen?: (itemId: number) => void;
+      onUploadVideo?: (itemId: number, file: File) => Promise<void>;
       onOpenFrameDialog?: (item: StoryboardItem, frameType: StoryboardFrameType) => void;
       onPreviewVideo?: (videoUrl: string) => void;
       attributes?: SortableBindings["attributes"];
@@ -62,6 +64,7 @@ const CardItemUI = memo(
         onSelect,
         onDelete,
         onVideoGen,
+        onUploadVideo,
         onOpenFrameDialog,
         onPreviewVideo,
         attributes,
@@ -283,6 +286,15 @@ const CardItemUI = memo(
                 <Video className="h-3.5 w-3.5" />
               </button>
             )}
+
+            {/* 上传 MP4：保存后与 AI 生成视频使用同一预览和合成链路。 */}
+            {onUploadVideo && (
+              <StoryboardVideoUploadButton
+                itemId={item.id}
+                className="absolute bottom-2 right-10 z-20"
+                onUpload={onUploadVideo}
+              />
+            )}
           </div>
 
           {/* 信息区域 (固定高度: 确保所有卡片对齐并避免网格跳动) */}
@@ -342,6 +354,7 @@ function SortableCardItem({
   onSelect,
   onDelete,
   onVideoGen,
+  onUploadVideo,
   onOpenFrameDialog,
   onPreviewVideo,
 }: {
@@ -351,6 +364,7 @@ function SortableCardItem({
   onSelect: () => void;
   onDelete?: (itemId: number) => void;
   onVideoGen?: (itemId: number) => void;
+  onUploadVideo?: (itemId: number, file: File) => Promise<void>;
   onOpenFrameDialog?: (item: StoryboardItem, frameType: StoryboardFrameType) => void;
   onPreviewVideo?: (videoUrl: string) => void;
 }) {
@@ -378,6 +392,7 @@ function SortableCardItem({
       onSelect={onSelect}
       onDelete={onDelete}
       onVideoGen={onVideoGen}
+      onUploadVideo={onUploadVideo}
       onOpenFrameDialog={onOpenFrameDialog}
       onPreviewVideo={onPreviewVideo}
       attributes={attributes}
@@ -395,6 +410,7 @@ export function StoryboardCardView({
   onDeleteItem,
   onReorderItems,
   onVideoGen,
+  onUploadVideo,
   onOpenFrameDialog,
 }: {
   items: StoryboardItem[];
@@ -404,6 +420,7 @@ export function StoryboardCardView({
   onDeleteItem: (id: number) => void;
   onReorderItems?: (reordered: StoryboardItem[]) => void;
   onVideoGen?: (itemId: number) => void;
+  onUploadVideo?: (itemId: number, file: File) => Promise<void>;
   onOpenFrameDialog?: (item: StoryboardItem, frameType: StoryboardFrameType) => void;
 }) {
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -487,6 +504,7 @@ export function StoryboardCardView({
                 onSelect={() => onSelectItem(item.id)}
                 onDelete={onDeleteItem}
                 onVideoGen={onVideoGen}
+                onUploadVideo={onUploadVideo}
                 onOpenFrameDialog={onOpenFrameDialog}
                 onPreviewVideo={setPreviewVideoUrl}
               />

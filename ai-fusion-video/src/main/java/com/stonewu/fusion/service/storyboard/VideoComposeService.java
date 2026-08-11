@@ -251,9 +251,10 @@ public class VideoComposeService {
             List<StoryboardItem> items = new ArrayList<>(storyboardService.listItemsByScene(scene.getId()));
             items.sort(Comparator.comparing(i -> Optional.ofNullable(i.getSortOrder()).orElse(0)));
             for (StoryboardItem item : items) {
-                String url = StringUtils.hasText(item.getVideoUrl())
-                        ? item.getVideoUrl()
-                        : item.getGeneratedVideoUrl();
+                // 优先使用 AI 生成或用户上传的视频，保证分镜预览和分集视频合成使用同一结果。
+                String url = StringUtils.hasText(item.getGeneratedVideoUrl())
+                        ? item.getGeneratedVideoUrl()
+                        : item.getVideoUrl();
                 if (StringUtils.hasText(url)) {
                     urls.add(url);
                 }

@@ -31,6 +31,30 @@ class FileUploadControllerTests {
             mediaStorageService, storageConfigService, systemConfigService, aiModelService);
 
     @Test
+    void uploadsMp4VideoToStoryboardDirectory() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "shot.mp4", "video/mp4", "video".getBytes());
+        when(mediaStorageService.storeBytes(file.getBytes(), "storyboard-videos", "mp4"))
+                .thenReturn("/media/storyboard-videos/shot.mp4");
+
+        var result = controller.upload(file, "storyboard-videos");
+
+        assertThat(result.getData()).isEqualTo("/media/storyboard-videos/shot.mp4");
+        verify(mediaStorageService).storeBytes(file.getBytes(), "storyboard-videos", "mp4");
+    }
+
+    @Test
+    void rejectsNonMp4VideoForGeneralUpload() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "shot.webm", "video/webm", "video".getBytes());
+
+        assertThatThrownBy(() -> controller.upload(file, "storyboard-videos"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("MP4");
+        verifyNoInteractions(mediaStorageService);
+    }
+
+    @Test
     void uploadsSupportedUrlInputAndReturnsPublicUrl() throws Exception {
         AiModel model = enabledModel(List.of("image"), Map.of("image", List.of("url")));
         MockMultipartFile file = new MockMultipartFile(

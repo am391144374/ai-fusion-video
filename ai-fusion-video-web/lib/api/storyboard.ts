@@ -204,6 +204,8 @@ export interface StoryboardItemUpdateReq {
   lastFrameImageUrl?: string | null;
   firstFramePrompt?: string | null;
   lastFramePrompt?: string | null;
+  /** AI 生成或用户上传的视频地址 */
+  generatedVideoUrl?: string | null;
   videoPrompt?: string | null;
   status?: number;
 }

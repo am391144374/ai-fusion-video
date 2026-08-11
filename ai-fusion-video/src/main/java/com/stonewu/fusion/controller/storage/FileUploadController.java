@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 通用文件上传 Controller
@@ -37,8 +36,13 @@ import java.util.Set;
 public class FileUploadController {
 
     private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
-            "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"
+    private static final Map<String, String> ALLOWED_UPLOAD_TYPES = Map.ofEntries(
+            Map.entry("image/png", "png"),
+            Map.entry("image/jpeg", "jpg"),
+            Map.entry("image/jpg", "jpg"),
+            Map.entry("image/webp", "webp"),
+            Map.entry("image/gif", "gif"),
+            Map.entry("video/mp4", "mp4")
     );
     private static final Map<String, String> ASSISTANT_UPLOAD_TYPES = Map.ofEntries(
             Map.entry("image/png", "png"),
@@ -82,14 +86,13 @@ public class FileUploadController {
             throw new BusinessException("文件大小不能超过 100MB");
         }
 
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
-            throw new BusinessException("仅支持图片格式：PNG, JPEG, WebP, GIF");
+        String extension = ALLOWED_UPLOAD_TYPES.get(normalizeContentType(file.getContentType()));
+        if (extension == null) {
+            throw new BusinessException("仅支持图片格式：PNG, JPEG, WebP, GIF，或 MP4 视频");
         }
 
         try {
-            String ext = getExtension(file.getOriginalFilename());
-            String url = mediaStorageService.storeBytes(file.getBytes(), subDir, ext);
+            String url = mediaStorageService.storeBytes(file.getBytes(), subDir, extension);
             log.info("[FileUpload] 上传成功: size={}KB, url={}", file.getSize() / 1024, url);
             return CommonResult.success(url);
         } catch (IOException e) {
@@ -162,9 +165,4 @@ public class FileUploadController {
         return value.trim().toLowerCase(Locale.ROOT);
     }
 
-    private String getExtension(String filename) {
-        if (filename == null) return "png";
-        int dotIndex = filename.lastIndexOf('.');
-        return dotIndex >= 0 ? filename.substring(dotIndex + 1) : "png";
-    }
 }

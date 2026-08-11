@@ -46,6 +46,7 @@ import {
 } from "./_components/storyboard-frame-reference-dialog";
 import { EditItemAssetsDialog } from "./_components/edit-assets-dialog";
 import { assetApi } from "@/lib/api/asset";
+import { uploadFile } from "@/lib/api/storage";
 import { useProject } from "../project-context";
 
 type ViewMode = "table" | "card";
@@ -745,6 +746,18 @@ export default function StoryboardTabPage() {
     );
   }, []);
 
+  /** 上传自定义视频后，复用 AI 视频生成结果的保存字段和页面刷新逻辑。 */
+  const handleUploadItemVideo = useCallback(async (itemId: number, file: File) => {
+    // 步骤一：先将 MP4 上传到分镜视频目录，上传失败时不修改镜头数据。
+    const generatedVideoUrl = await uploadFile(file, "storyboard-videos");
+
+    // 步骤二：只更新 AI 生成视频字段，保留视频提示词和其他镜头信息。
+    const updated = await storyboardApi.updateItem({ id: itemId, generatedVideoUrl });
+
+    // 步骤三：使用服务端完整返回值替换局部状态，预览和合成立即读取新视频。
+    updateItemInSceneGroups(updated);
+  }, [updateItemInSceneGroups]);
+
   /** 手动更新镜头首尾帧 */
   const handleUpdateItemFrame = useCallback(
     async (itemId: number, frameType: StoryboardFrameType, imageUrl: string | null) => {
@@ -1404,6 +1417,7 @@ export default function StoryboardTabPage() {
                       handleReorderItems(scene.id, reordered)
                     }
                     onVideoGen={handleVideoGen}
+                    onUploadVideo={handleUploadItemVideo}
                     onOpenFrameDialog={handleOpenFrameDialog}
                     assetLookup={assetLookup}
                     onEditAssets={(item) => {
@@ -1424,6 +1438,7 @@ export default function StoryboardTabPage() {
                       handleReorderItems(scene.id, reordered)
                     }
                     onVideoGen={handleVideoGen}
+                    onUploadVideo={handleUploadItemVideo}
                     onOpenFrameDialog={handleOpenFrameDialog}
                   />
                 )}

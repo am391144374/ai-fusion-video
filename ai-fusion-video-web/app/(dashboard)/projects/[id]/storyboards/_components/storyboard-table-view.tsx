@@ -9,6 +9,7 @@ import { EditableCell } from "./editable-cell";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { SafeImage } from "@/components/ui/safe-image";
+import { StoryboardVideoUploadButton } from "./storyboard-video-upload-button";
 
 const TOOLTIP_CONTENT_CLASS = "flex flex-col gap-0.5 items-start text-left max-w-[220px] px-2.5 py-1.5 rounded-lg text-[11px] bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md border border-zinc-200/50 dark:border-zinc-800/50 text-zinc-900 dark:text-zinc-50 shadow-lg [&_.bg-foreground]:bg-white/85 [&_.fill-foreground]:fill-white/85 dark:[&_.bg-foreground]:bg-zinc-900/85 dark:[&_.fill-foreground]:fill-zinc-900/85";
 
@@ -129,6 +130,7 @@ export function StoryboardTableView({
   onDeleteItem,
   onReorderItems,
   onVideoGen,
+  onUploadVideo,
   onOpenFrameDialog,
   assetLookup = {},
   onEditAssets,
@@ -141,6 +143,7 @@ export function StoryboardTableView({
   onDeleteItem: (id: number) => void;
   onReorderItems?: (reorderedItems: StoryboardItem[]) => void;
   onVideoGen?: (itemId: number) => void;
+  onUploadVideo?: (itemId: number, file: File) => Promise<void>;
   onOpenFrameDialog?: (item: StoryboardItem, frameType: StoryboardFrameType) => void;
   assetLookup?: Record<
     number,
@@ -745,6 +748,13 @@ export function StoryboardTableView({
 
                 {/* 操作按钮 */}
                 <div className="px-1 py-2 flex items-center justify-center gap-0.5">
+                  {/* 上传 MP4：与生成视频共用 generatedVideoUrl 保存字段。 */}
+                  {onUploadVideo && (
+                    <StoryboardVideoUploadButton
+                      itemId={item.id}
+                      onUpload={onUploadVideo}
+                    />
+                  )}
                   {/* 生成视频 */}
                   {onVideoGen && (
                     <Tooltip>

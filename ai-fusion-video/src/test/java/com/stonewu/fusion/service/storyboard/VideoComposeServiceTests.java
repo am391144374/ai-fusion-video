@@ -112,6 +112,27 @@ class VideoComposeServiceTests {
     }
 
     @Test
+    void collectVideoUrlsPrefersGeneratedVideoOverLegacyVideo() {
+        when(storyboardService.listScenesByEpisode(11L)).thenReturn(List.of(
+                com.stonewu.fusion.entity.storyboard.StoryboardScene.builder().id(101L).sortOrder(0).build()
+        ));
+        when(storyboardService.listItemsByScene(101L)).thenReturn(List.of(
+                com.stonewu.fusion.entity.storyboard.StoryboardItem.builder()
+                        .id(201L)
+                        .sortOrder(0)
+                        .videoUrl("/media/videos/legacy.mp4")
+                        .generatedVideoUrl("/media/storyboard-videos/uploaded.mp4")
+                        .build()
+        ));
+
+        @SuppressWarnings("unchecked")
+        List<String> videoUrls = (List<String>) ReflectionTestUtils.invokeMethod(
+                videoComposeService, "collectVideoUrls", 11L);
+
+        assertThat(videoUrls).containsExactly("/media/storyboard-videos/uploaded.mp4");
+    }
+
+    @Test
     void submitComposeMarksFailedWhenExecutorRejectsTask() {
         when(episodeMapper.selectById(11L)).thenReturn(StoryboardEpisode.builder().id(11L).storyboardId(21L).build());
         when(storyboardService.getById(21L)).thenReturn(Storyboard.builder().id(21L).projectId(31L).build());
