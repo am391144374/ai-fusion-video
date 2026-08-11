@@ -94,19 +94,24 @@ public class GetStoryboardSceneItemsToolExecutor implements ToolExecutor {
             Long storyboardSceneId = params.getLong("storyboardSceneId");
             Long storyboardItemId = params.getLong("storyboardItemId");
 
-            if (storyboardSceneId == null && storyboardItemId == null) {
-                return errorResult("请提供 storyboardSceneId 或 storyboardItemId");
+            boolean hasSceneId = isPositive(storyboardSceneId);
+            boolean hasItemId = isPositive(storyboardItemId);
+            if (!hasSceneId && !hasItemId) {
+                return errorResult("storyboardSceneId 或 storyboardItemId 必须为正整数");
             }
 
-            // 如果提供了 storyboardItemId，先找到所在的场次
-            Long targetItemId = storyboardItemId;
+            Long targetItemId = hasItemId ? storyboardItemId : null;
             StoryboardItem targetItem = null;
-            if (storyboardSceneId == null) {
+            if (hasItemId) {
                 targetItem = accessGuard.requireStoryboardItem(storyboardItemId, context.getUserId());
-                storyboardSceneId = targetItem.getStoryboardSceneId();
-                if (storyboardSceneId == null) {
+                Long itemSceneId = targetItem.getStoryboardSceneId();
+                if (!isPositive(itemSceneId)) {
                     return errorResult("该分镜条目没有关联场次");
                 }
+                if (hasSceneId && !Objects.equals(storyboardSceneId, itemSceneId)) {
+                    return errorResult("storyboardSceneId 与分镜条目所属场次不一致");
+                }
+                storyboardSceneId = itemSceneId;
             }
 
             // 查询场次信息
@@ -207,6 +212,10 @@ public class GetStoryboardSceneItemsToolExecutor implements ToolExecutor {
 
     private String errorResult(String message) {
         return JSONUtil.createObj().set("status", "error").set("message", message).toString();
+    }
+
+    private boolean isPositive(Long id) {
+        return id != null && id > 0;
     }
 
     /**
