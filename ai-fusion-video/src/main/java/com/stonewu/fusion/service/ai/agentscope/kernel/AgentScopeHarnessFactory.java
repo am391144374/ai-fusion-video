@@ -108,6 +108,7 @@ public final class AgentScopeHarnessFactory {
         AgentKernelToolkitResources toolResources = null;
         HarnessAgent agent = null;
         try {
+            boolean hasRepositorySkills = skillRegistry.hasSkills();
             Toolkit toolkit = new Toolkit(ToolkitConfig.builder()
                     .parallel(true)
                     .build());
@@ -143,22 +144,17 @@ public final class AgentScopeHarnessFactory {
                     .disableAtPathExpansion()
                     .disableSubagents()
                     .disableDynamicSubagents()
-                    .disableToolsConfig();
+                    .disableToolsConfig()
+                    .disableDefaultWorkspaceSkills()
+                    .disableDynamicSkills();
             if (workspaceStore != null) {
                 builder.filesystem(new RemoteFilesystemSpec(workspaceStore)
                         .isolationScope(IsolationScope.USER));
-            } else {
-                builder.disableDefaultWorkspaceSkills();
             }
-            if (skillRegistry.enabled()) {
+            if (hasRepositorySkills) {
                 builder.skillRepositories(skillRegistry.repositories());
             }
-            if (workspaceStore != null || skillRegistry.enabled()) {
-                builder.skillsEnabled(true);
-            } else {
-                builder.disableDynamicSkills()
-                        .skillsEnabled(false);
-            }
+            builder.skillsEnabled(hasRepositorySkills);
             agent = builder.build();
             removeUnlistedHarnessTools(agent.getToolkit(), spec.toolWhitelist());
             return new AgentKernelResource(agent, ownedModel, toolResources);

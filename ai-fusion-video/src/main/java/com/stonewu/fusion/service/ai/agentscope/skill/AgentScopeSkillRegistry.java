@@ -43,6 +43,10 @@ public final class AgentScopeSkillRegistry implements DisposableBean {
         return !repositories.isEmpty();
     }
 
+    public boolean hasSkills() {
+        return !skills().isEmpty();
+    }
+
     public List<AgentSkillRepository> repositories() {
         return repositories;
     }

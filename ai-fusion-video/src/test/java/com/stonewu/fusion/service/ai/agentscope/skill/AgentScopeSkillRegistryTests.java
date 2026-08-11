@@ -23,6 +23,7 @@ class AgentScopeSkillRegistryTests {
         try {
             assertThat(registry.enabled()).isTrue();
             assertThat(registry.repositories()).hasSize(1);
+            assertThat(registry.hasSkills()).isFalse();
             assertThat(registry.skills()).isEmpty();
             assertThat(registry.catalog()).isEmpty();
         } finally {
@@ -44,6 +45,7 @@ class AgentScopeSkillRegistryTests {
         AgentScopeSkillRegistry registry = new AgentScopeSkillRegistry(properties);
         try {
             assertThat(registry.enabled()).isTrue();
+            assertThat(registry.hasSkills()).isTrue();
             assertThat(registry.repositories()).hasSize(1);
             AgentSkill skill = registry.repositories().getFirst()
                     .getSkill("test-skill");

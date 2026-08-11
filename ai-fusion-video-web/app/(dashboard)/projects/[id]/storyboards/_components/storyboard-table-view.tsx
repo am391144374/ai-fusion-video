@@ -727,6 +727,8 @@ export function StoryboardTableView({
                         placeholder={
                           col.field === "shotNumber" ? String(idx + 1) : ""
                         }
+                        previewMaxLength={col.field === "videoPrompt" ? 50 : undefined}
+                        editOnDoubleClick={col.field === "videoPrompt"}
                         onSave={(val) =>
                           onUpdateItemField(item.id, col.field, val)
                         }

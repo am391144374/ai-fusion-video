@@ -4,6 +4,14 @@ import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function truncatePreview(value: string, maxLength?: number) {
+  if (!maxLength || maxLength < 1) return value;
+  const characters = Array.from(value);
+  return characters.length > maxLength
+    ? `${characters.slice(0, maxLength).join("")}…`
+    : value;
+}
+
 export function EditableCell({
   value,
   placeholder,
@@ -11,6 +19,8 @@ export function EditableCell({
   onCellClick,
   className,
   multiline,
+  previewMaxLength,
+  editOnDoubleClick = false,
 }: {
   value: string;
   placeholder?: string;
@@ -18,10 +28,13 @@ export function EditableCell({
   onCellClick?: () => void;
   className?: string;
   multiline?: boolean;
+  previewMaxLength?: number;
+  editOnDoubleClick?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const previewValue = truncatePreview(value, previewMaxLength);
 
   useEffect(() => {
     setDraft(value);
@@ -114,6 +127,14 @@ export function EditableCell({
       onClick={(e) => {
         onCellClick?.();
         e.stopPropagation();
+        if (!editOnDoubleClick) {
+          setEditing(true);
+        }
+      }}
+      onDoubleClick={(e) => {
+        if (!editOnDoubleClick) return;
+        e.preventDefault();
+        e.stopPropagation();
         setEditing(true);
       }}
       className={cn(
@@ -129,9 +150,11 @@ export function EditableCell({
         !value && "text-muted-foreground/30 italic",
         className
       )}
-      title="点击编辑"
+      title={editOnDoubleClick ? "双击查看或编辑完整内容" : "点击编辑"}
     >
-      <span className="flex-1 whitespace-pre-wrap break-words">{value || placeholder || "\u00a0"}</span>
+      <span className="flex-1 whitespace-pre-wrap break-words">
+        {previewValue || placeholder || "\u00a0"}
+      </span>
       <div className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 rounded-lg flex items-center justify-center invisible group-hover/cell:visible backdrop-blur-xl bg-white/70 shadow-sm z-10">
         <Pencil className="h-3.5 w-3.5 text-primary" />
       </div>
