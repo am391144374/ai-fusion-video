@@ -30,6 +30,9 @@ public class OpenAiVideoProtocolAdapter implements OpenAiCompatibleVideoProtocol
 
     @Override
     public RequestBody buildSubmitBody(OpenAiCompatibleVideoProtocolContext context) {
+        if (support.isGrokVideoModel(context.model())) {
+            return support.buildGrokSubmitBody(context);
+        }
         return support.buildSoraSubmitBody(context);
     }
 
@@ -61,6 +64,9 @@ public class OpenAiVideoProtocolAdapter implements OpenAiCompatibleVideoProtocol
     public String resolveCoverContentUrl(OpenAiCompatibleVideoProtocolContext context,
                                          String trackingId,
                                          OpenAiCompatibleVideoTaskResult result) {
+        if (support.isGrokVideoModel(context.model())) {
+            return null;
+        }
         return support.resolveOpenAiVideosUrl(context.apiConfig()) + "/" + trackingId + "/content?variant=thumbnail";
     }
 

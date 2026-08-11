@@ -58,5 +58,35 @@
       "supportGenerateAudio": true,
       "supportCameraFixed": false
     }
+  },
+  {
+    "code": "grok-imagine-video",
+    "name": "Grok Imagine Video (CLIProxyAPI)",
+    "platform": "openai_compatible",
+    "modelProtocol": "openai",
+    "modelType": 3,
+    "description": "通过 CLIProxyAPI 的 OpenAI 兼容 Videos API 调用 xAI Grok Imagine Video，支持文生视频、首帧图生视频和多参考图生视频。",
+    "capabilities": ["文生视频", "图生视频-首帧", "多参考图生视频"],
+    "config": {
+      "supportFirstFrame": true,
+      "referenceImageInputFormats": ["data_uri"],
+      "supportLastFrame": false,
+      "supportReferenceImages": true,
+      "supportReferenceVideos": false,
+      "supportReferenceAudios": false,
+      "minImageInputs": 0,
+      "maxImageInputs": 7,
+      "maxReferenceImages": 7,
+      "maxReferenceVideos": 0,
+      "maxReferenceAudios": 0,
+      "supportedResolutions": ["1280x720", "720x1280", "1024x1024", "1792x1024", "1024x1792"],
+      "supportedAspectRatios": ["16:9", "9:16", "1:1", "7:4", "4:7"],
+      "supportedDurations": [6, 10, 12, 16, 20],
+      "minDuration": 6,
+      "maxDuration": 20,
+      "defaultDuration": 10,
+      "supportGenerateAudio": false,
+      "supportCameraFixed": false
+    }
   }
 ]
