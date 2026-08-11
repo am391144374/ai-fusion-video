@@ -291,6 +291,7 @@ const CardItemUI = memo(
             {onUploadVideo && (
               <StoryboardVideoUploadButton
                 itemId={item.id}
+                visualStyle="card"
                 className="absolute bottom-2 right-10 z-20"
                 onUpload={onUploadVideo}
               />

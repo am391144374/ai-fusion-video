@@ -752,6 +752,7 @@ export function StoryboardTableView({
                   {onUploadVideo && (
                     <StoryboardVideoUploadButton
                       itemId={item.id}
+                      visualStyle="table"
                       onUpload={onUploadVideo}
                     />
                   )}
