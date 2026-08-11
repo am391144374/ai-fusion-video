@@ -26,15 +26,13 @@ LABEL maintainer="Stonewu <https://github.com/Stonewuu>"
 WORKDIR /app
 
 RUN set -eux; \
-  if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
-    sed -i 's|http://archive.ubuntu.com/ubuntu/|https://archive.ubuntu.com/ubuntu/|g; s|http://security.ubuntu.com/ubuntu/|https://security.ubuntu.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources; \
-  fi; \
-  if [ -f /etc/apt/sources.list ]; then \
-    sed -i 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list; \
-  fi; \
-  apt-get update -o Acquire::Retries=5; \
-  apt-get install -y --no-install-recommends ffmpeg curl; \
-  rm -rf /var/lib/apt/lists/*
+    sed -i \
+      's|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; \
+       s|http://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+       /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true; \
+    apt-get update -o Acquire::Retries=5; \
+    apt-get install -y --no-install-recommends ffmpeg curl; \
+    rm -rf /var/lib/apt/lists/*
 
 # 从构建阶段复制 JAR
 COPY --from=builder /build/target/*.jar app.jar
