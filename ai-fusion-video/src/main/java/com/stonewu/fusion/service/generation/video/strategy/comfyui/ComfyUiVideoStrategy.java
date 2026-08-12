@@ -170,7 +170,8 @@ public class ComfyUiVideoStrategy implements VideoGenerationStrategy {
     }
 
     private long timeout(AiModel model) {
-        return configLong(model, "comfyuiTimeoutMillis", DEFAULT_TIMEOUT_MILLIS);
+        return Math.max(DEFAULT_TIMEOUT_MILLIS,
+                configLong(model, "comfyuiTimeoutMillis", DEFAULT_TIMEOUT_MILLIS));
     }
 
     private Integer configInt(AiModel model, String key) {
