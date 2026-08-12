@@ -76,6 +76,13 @@ public class ComfyUiWorkflowValidationService {
         try {
             nativeClient.testConnection(apiConfig);
             ObjectNode apiWorkflow = documentService.parseApiWorkflow(version.getApiWorkflowJson());
+            Set<String> dynamicUploadTargets = new LinkedHashSet<>();
+            for (ComfyUiInputBinding binding : documentService.parseInputBindings(
+                    workflow.getModelType(), version.getApiWorkflowJson(), version.getInputBindingsJson())) {
+                if (binding.valueType().startsWith("uploaded_")) {
+                    dynamicUploadTargets.add(binding.nodeId() + "\u0000" + binding.inputName());
+                }
+            }
             Set<String> missingClasses = new LinkedHashSet<>();
             List<String> invalidModelInputs = new ArrayList<>();
             Map<String, JsonNode> definitionCache = new HashMap<>();
@@ -93,7 +100,9 @@ public class ComfyUiWorkflowValidationService {
                     missingClasses.add(classType);
                     continue;
                 }
-                validateChoiceInputs(nodeId, workflowNode.path("inputs"), definition, invalidModelInputs);
+                validateChoiceInputs(
+                        nodeId, workflowNode.path("inputs"), definition,
+                        dynamicUploadTargets, invalidModelInputs);
             }
             boolean valid = missingClasses.isEmpty() && invalidModelInputs.isEmpty();
             String message = valid
@@ -219,11 +228,17 @@ public class ComfyUiWorkflowValidationService {
     private void validateChoiceInputs(String nodeId,
                                       JsonNode workflowInputs,
                                       JsonNode definition,
+                                      Set<String> dynamicUploadTargets,
                                       List<String> invalidInputs) {
         JsonNode definitions = definition.path("input");
         Iterator<Map.Entry<String, JsonNode>> inputs = workflowInputs.fields();
         while (inputs.hasNext()) {
             Map.Entry<String, JsonNode> input = inputs.next();
+            // 动态素材会在正式提交前上传到目标 ComfyUI，并替换 API JSON 中的占位文件名。
+            // 在线校验只检查不会被运行时替换的固定模型和选项。
+            if (dynamicUploadTargets.contains(nodeId + "\u0000" + input.getKey())) {
+                continue;
+            }
             if (!input.getValue().isTextual()) {
                 continue;
             }
