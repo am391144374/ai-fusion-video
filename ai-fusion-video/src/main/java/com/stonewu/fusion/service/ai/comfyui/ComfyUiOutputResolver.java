@@ -68,12 +68,22 @@ public class ComfyUiOutputResolver {
         String key = outputKey.toLowerCase(Locale.ROOT);
         String format = item.path("format").asText("").toLowerCase(Locale.ROOT);
         String filename = item.path("filename").asText("").toLowerCase(Locale.ROOT);
-        if (key.contains("image") || format.startsWith("image/") || hasExtension(filename,
-                "png", "jpg", "jpeg", "webp", "gif")) return "image";
-        if (key.contains("video") || key.equals("gifs") || format.startsWith("video/")
-                || hasExtension(filename, "mp4", "webm", "mov", "mkv")) return "video";
-        if (key.contains("audio") || format.startsWith("audio/")
-                || hasExtension(filename, "mp3", "wav", "flac", "m4a", "ogg")) return "audio";
+
+        // 步骤一：优先使用文件描述中的 MIME 类型，避免输出字段名称覆盖明确的媒体信息。
+        if (format.startsWith("image/")) return "image";
+        if (format.startsWith("video/")) return "video";
+        if (format.startsWith("audio/")) return "audio";
+
+        // 步骤二：没有 MIME 类型时根据真实文件扩展名识别。
+        // 部分 SaveVideo 节点会把 MP4 放在 images 数组中，此时必须识别为视频。
+        if (hasExtension(filename, "png", "jpg", "jpeg", "webp", "gif")) return "image";
+        if (hasExtension(filename, "mp4", "webm", "mov", "mkv")) return "video";
+        if (hasExtension(filename, "mp3", "wav", "flac", "m4a", "ogg")) return "audio";
+
+        // 步骤三：文件自身没有提供足够信息时，才使用 ComfyUI 输出字段名称兜底识别。
+        if (key.contains("image")) return "image";
+        if (key.contains("video") || key.equals("gifs")) return "video";
+        if (key.contains("audio")) return "audio";
         return "file";
     }
 
