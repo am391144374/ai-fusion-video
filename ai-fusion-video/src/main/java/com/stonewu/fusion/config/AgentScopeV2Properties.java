@@ -189,7 +189,7 @@ public class AgentScopeV2Properties {
     public static final class Execution {
         private String instanceId;
         private Duration ownerLease = Duration.ofSeconds(30);
-        private Duration runTimeout = Duration.ofMinutes(30);
+        private Duration runTimeout = Duration.ofMinutes(60);
         private Duration confirmationTimeout = Duration.ofHours(48);
         private int maxIters = 999;
 

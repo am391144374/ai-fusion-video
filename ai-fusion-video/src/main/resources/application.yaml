@@ -83,7 +83,7 @@ fusion:
         coalesce-max-chars: 1024
       execution:
         owner-lease: 30s
-        run-timeout: 30m
+        run-timeout: 60m
         confirmation-timeout: 48h
         max-iters: 999
       skills:
