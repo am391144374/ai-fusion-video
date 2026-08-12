@@ -190,6 +190,8 @@ public class AgentScopeV2Properties {
         private String instanceId;
         private Duration ownerLease = Duration.ofSeconds(30);
         private Duration runTimeout = Duration.ofMinutes(60);
+        private Duration modelTimeout = Duration.ofMinutes(60);
+        private Duration toolTimeout = Duration.ofMinutes(60);
         private Duration confirmationTimeout = Duration.ofHours(48);
         private int maxIters = 999;
 
@@ -217,6 +219,22 @@ public class AgentScopeV2Properties {
 
         public void setRunTimeout(Duration runTimeout) {
             this.runTimeout = requirePositive(runTimeout, "runTimeout");
+        }
+
+        public Duration getModelTimeout() {
+            return modelTimeout;
+        }
+
+        public void setModelTimeout(Duration modelTimeout) {
+            this.modelTimeout = requirePositive(modelTimeout, "modelTimeout");
+        }
+
+        public Duration getToolTimeout() {
+            return toolTimeout;
+        }
+
+        public void setToolTimeout(Duration toolTimeout) {
+            this.toolTimeout = requirePositive(toolTimeout, "toolTimeout");
         }
 
         public Duration getConfirmationTimeout() {

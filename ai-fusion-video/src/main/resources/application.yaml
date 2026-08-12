@@ -84,6 +84,8 @@ fusion:
       execution:
         owner-lease: 30s
         run-timeout: 60m
+        model-timeout: 60m
+        tool-timeout: 60m
         confirmation-timeout: 48h
         max-iters: 999
       skills:

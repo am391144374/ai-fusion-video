@@ -8,6 +8,7 @@ import com.stonewu.fusion.service.ai.agentscope.skill.AgentScopeSkillRegistry;
 import com.stonewu.fusion.service.ai.agentscope.workspace.AgentWorkspaceBaseStore;
 import com.stonewu.fusion.service.ai.agentscope.permission.AgentToolPermissionPolicy;
 import com.stonewu.fusion.service.ai.agentscope.permission.ToolExecutionMode;
+import io.agentscope.core.model.ExecutionConfig;
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.core.tool.ToolkitConfig;
@@ -35,6 +36,7 @@ public final class AgentScopeHarnessFactory {
     private final AgentScopeShutdownRecoveryBridge shutdownRecoveryBridge;
     private final AgentScopeSkillRegistry skillRegistry;
     private final BaseStore workspaceStore;
+    private final AgentScopeV2Properties properties;
 
     @Autowired
     public AgentScopeHarnessFactory(
@@ -44,7 +46,8 @@ public final class AgentScopeHarnessFactory {
             StateStoreFailureGuard failures,
             AgentScopeShutdownRecoveryBridge shutdownRecoveryBridge,
             ObjectProvider<AgentScopeSkillRegistry> skillRegistries,
-            ObjectProvider<AgentWorkspaceBaseStore> workspaceStores) {
+            ObjectProvider<AgentWorkspaceBaseStore> workspaceStores,
+            AgentScopeV2Properties properties) {
         this(
                 modelFactory,
                 toolRegistry,
@@ -52,7 +55,8 @@ public final class AgentScopeHarnessFactory {
                 failures,
                 shutdownRecoveryBridge,
                 skillRegistries.getIfAvailable(AgentScopeHarnessFactory::disabledSkillRegistry),
-                workspaceStores.getIfAvailable());
+                workspaceStores.getIfAvailable(),
+                properties);
     }
 
     AgentScopeHarnessFactory(
@@ -63,7 +67,7 @@ public final class AgentScopeHarnessFactory {
             AgentScopeShutdownRecoveryBridge shutdownRecoveryBridge,
             AgentScopeSkillRegistry skillRegistry) {
         this(modelFactory, toolRegistry, stateStore, failures, shutdownRecoveryBridge,
-                skillRegistry, null);
+                skillRegistry, null, new AgentScopeV2Properties());
     }
 
     AgentScopeHarnessFactory(
@@ -74,6 +78,19 @@ public final class AgentScopeHarnessFactory {
             AgentScopeShutdownRecoveryBridge shutdownRecoveryBridge,
             AgentScopeSkillRegistry skillRegistry,
             BaseStore workspaceStore) {
+        this(modelFactory, toolRegistry, stateStore, failures, shutdownRecoveryBridge,
+                skillRegistry, workspaceStore, new AgentScopeV2Properties());
+    }
+
+    AgentScopeHarnessFactory(
+            AgentKernelModelFactory modelFactory,
+            AgentKernelToolRegistry toolRegistry,
+            AgentStateStore stateStore,
+            StateStoreFailureGuard failures,
+            AgentScopeShutdownRecoveryBridge shutdownRecoveryBridge,
+            AgentScopeSkillRegistry skillRegistry,
+            BaseStore workspaceStore,
+            AgentScopeV2Properties properties) {
         this.modelFactory = Objects.requireNonNull(modelFactory, "modelFactory must not be null");
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry must not be null");
         this.stateStore = Objects.requireNonNull(stateStore, "stateStore must not be null");
@@ -83,6 +100,7 @@ public final class AgentScopeHarnessFactory {
         this.skillRegistry = Objects.requireNonNull(
                 skillRegistry, "skillRegistry must not be null");
         this.workspaceStore = workspaceStore;
+        this.properties = Objects.requireNonNull(properties, "properties must not be null");
     }
 
     public AgentScopeHarnessFactory(
@@ -98,7 +116,8 @@ public final class AgentScopeHarnessFactory {
                 failures,
                 shutdownRecoveryBridge,
                 disabledSkillRegistry(),
-                null);
+                null,
+                new AgentScopeV2Properties());
     }
 
     public AgentKernelResource create(AgentKernelSpec spec) {
@@ -109,8 +128,16 @@ public final class AgentScopeHarnessFactory {
         HarnessAgent agent = null;
         try {
             boolean hasRepositorySkills = skillRegistry.hasSkills();
+            ExecutionConfig modelExecutionConfig = ExecutionConfig.builder()
+                    .timeout(properties.getExecution().getModelTimeout())
+                    .build();
+            ExecutionConfig toolExecutionConfig = ExecutionConfig.builder()
+                    .timeout(properties.getExecution().getToolTimeout())
+                    .maxAttempts(1)
+                    .build();
             Toolkit toolkit = new Toolkit(ToolkitConfig.builder()
                     .parallel(true)
+                    .executionConfig(toolExecutionConfig)
                     .build());
             toolResources = Objects.requireNonNull(
                     toolRegistry.register(spec, toolkit), "toolRegistry returned null resources");
@@ -128,12 +155,14 @@ public final class AgentScopeHarnessFactory {
                     .sysPrompt(spec.systemPrompt())
                     .model(new StateStoreGuardedChatModel(
                             ownedModel.model(), failures, contextWindow))
+                    .modelExecutionConfig(modelExecutionConfig)
                     .stateStore(stateStore)
                     .toolkit(toolkit)
                     .permissionContext(AgentToolPermissionPolicy.contextFor(
                             toolkit, ToolExecutionMode.DEFAULT))
                     .middleware(shutdownRecoveryBridge)
                     .compaction(compactionConfig(contextWindow))
+                    .toolExecutionConfig(toolExecutionConfig)
                     .maxIters(spec.maxIters())
                     .disableFilesystemTools()
                     .disableShellTool()
