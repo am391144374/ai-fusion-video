@@ -52,6 +52,7 @@ public class OpenAiCompatibleVideoProtocolSupport {
     private static final String DEFAULT_VIDEO_MODEL = "sora-2";
     private static final String DEFAULT_LOCAL_MEDIA_BASE_PATH = "./data/media";
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json");
+    private static final String GROK_VIDEO_MODEL = "grok-imagine-video";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final StorageConfigService storageConfigService;
@@ -98,6 +99,54 @@ public class OpenAiCompatibleVideoProtocolSupport {
         }
 
         return builder.build();
+    }
+
+    public RequestBody buildGrokSubmitBody(OpenAiCompatibleVideoProtocolContext context) {
+        JSONObject body = JSONUtil.createObj();
+        body.set("model", resolveModelCode(context.model()));
+
+        String prompt = StrUtil.trim(context.task().getPrompt());
+        if (StrUtil.isNotBlank(prompt)) {
+            body.set("prompt", prompt);
+        }
+
+        Integer duration = resolveDurationSeconds(context.task(), context.modelConfig());
+        if (duration != null) {
+            body.set("seconds", duration);
+        }
+
+        String size = resolveSize(context.task(), context.modelConfig());
+        if (StrUtil.isNotBlank(size)) {
+            body.set("size", size);
+        }
+
+        String firstFrameImageUrl = context.task().getFirstFrameImageUrl();
+        if (StrUtil.isNotBlank(firstFrameImageUrl)) {
+            body.set("image", JSONUtil.createObj().set("url", toImageDataUri(firstFrameImageUrl, context.apiConfig())));
+        } else {
+            List<String> referenceImageUrls = parseJsonUrls(context.task().getReferenceImageUrls());
+            if (!referenceImageUrls.isEmpty()) {
+                JSONArray referenceImages = JSONUtil.createArray();
+                for (String referenceImageUrl : referenceImageUrls) {
+                    referenceImages.add(JSONUtil.createObj()
+                            .set("url", toImageDataUri(referenceImageUrl, context.apiConfig())));
+                }
+                body.set("reference_images", referenceImages);
+            }
+        }
+
+        return RequestBody.create(body.toString(), JSON_MEDIA_TYPE);
+    }
+
+    public boolean isGrokVideoModel(AiModel model) {
+        String modelCode = resolveModelCode(model).trim().toLowerCase(Locale.ROOT);
+        for (String prefix : List.of("xai/", "x-ai/", "grok/")) {
+            if (modelCode.startsWith(prefix)) {
+                modelCode = modelCode.substring(prefix.length());
+                break;
+            }
+        }
+        return GROK_VIDEO_MODEL.equals(modelCode) || modelCode.startsWith(GROK_VIDEO_MODEL + "-");
     }
 
     public RequestBody buildAgnesSubmitBody(OpenAiCompatibleVideoProtocolContext context) {
@@ -515,6 +564,16 @@ public class OpenAiCompatibleVideoProtocolSupport {
             case "video/x-matroska" -> "mkv";
             default -> "mp4";
         };
+    }
+
+    private String toImageDataUri(String sourceUrl, ApiConfig apiConfig) {
+        try {
+            BinaryResource resource = loadBinaryResource(sourceUrl, apiConfig);
+            return "data:" + resource.mimeType() + ";base64,"
+                    + Base64.getEncoder().encodeToString(resource.bytes());
+        } catch (IOException e) {
+            throw new BusinessException("加载 Grok 视频参考图失败: " + e.getMessage());
+        }
     }
 
     private JSONObject asJsonObject(Object value) {

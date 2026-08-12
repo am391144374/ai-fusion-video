@@ -3,17 +3,28 @@ package com.stonewu.fusion.service.ai.agentscope.kernel;
 import com.stonewu.fusion.entity.ai.AiModel;
 import com.stonewu.fusion.config.AgentScopeV2Properties;
 import com.stonewu.fusion.service.ai.agentscope.state.AgentScopeShutdownRecoveryBridge;
+import com.stonewu.fusion.service.ai.agentscope.state.FailClosedAgentStateStore;
+import com.stonewu.fusion.service.ai.agentscope.state.InMemoryStateStoreFailureGuard;
 import com.stonewu.fusion.service.ai.agentscope.state.StateStoreFailureGuard;
 import com.stonewu.fusion.service.ai.agentscope.skill.AgentScopeSkillRegistry;
+import com.stonewu.fusion.service.ai.agentscope.workspace.AgentWorkspaceBaseStore;
 import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
+import io.agentscope.core.message.UserMessage;
 import io.agentscope.core.model.ChatModelBase;
+import io.agentscope.core.model.ChatResponse;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.ToolSchema;
 import io.agentscope.core.state.AgentStateStore;
+import io.agentscope.core.state.InMemoryAgentStateStore;
 import io.agentscope.core.tool.ToolBase;
 import io.agentscope.core.tool.ToolCallParam;
 import io.agentscope.core.tool.Toolkit;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -21,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -180,6 +192,49 @@ class AgentScopeHarnessFactoryTests {
             assertThat(resource.agent().getCompactionHook()).isNotNull();
         } finally {
             skills.destroy();
+        }
+    }
+
+    @Test
+    void omitsUserWorkspaceSkillLoaderWhenSelectedSkillsArePromptInjected() {
+        AgentScopeV2Properties properties = new AgentScopeV2Properties();
+        properties.getSkills().setEnabled(true);
+        AgentScopeV2Properties.SkillRepository empty =
+                new AgentScopeV2Properties.SkillRepository();
+        empty.setLocation("classpath:agentscope/empty-skills");
+        properties.getSkills().setRepositories(Map.of("empty", empty));
+        AgentScopeSkillRegistry skills = new AgentScopeSkillRegistry(properties);
+        InMemoryStateStoreFailureGuard failures = new InMemoryStateStoreFailureGuard();
+        AgentStateStore store = new FailClosedAgentStateStore(
+                new InMemoryAgentStateStore(), failures);
+        RecordingModel model = new RecordingModel();
+        AgentScopeHarnessFactory factory = new AgentScopeHarnessFactory(
+                ignored -> OwnedChatModel.owned(model),
+                (ignored, toolkit) -> AgentKernelToolkitResources.none(),
+                store,
+                failures,
+                recoveryBridge(),
+                skills,
+                mock(AgentWorkspaceBaseStore.class));
+        AgentKernelKey key = AgentKernelKey.create(
+                "writer", "model-a", "prompt-v1", List.of(), "afv-tools-v1");
+
+        try (AgentKernelResource resource = factory.create(
+                spec(key, List.of(), Set.of(), "afv-tools-v1"))) {
+            Msg response = resource.agent().call(
+                            new UserMessage("generate video"),
+                            RuntimeContext.builder()
+                                    .userId("42")
+                                    .sessionId("video-generation")
+                                    .build())
+                    .block(Duration.ofSeconds(2));
+
+            assertThat(response).isNotNull();
+            assertThat(resource.agent().getSkillRepositories()).isEmpty();
+            assertThat(model.tools()).isEmpty();
+        } finally {
+            skills.destroy();
+            store.close();
         }
     }
 
@@ -362,6 +417,41 @@ class AgentScopeHarnessFactoryTests {
         @Override
         public void close() {
             closeCount++;
+        }
+    }
+
+    private static final class RecordingModel extends ChatModelBase implements AutoCloseable {
+        private final AtomicReference<List<ToolSchema>> tools = new AtomicReference<>(List.of());
+
+        @Override
+        protected Flux<ChatResponse> doStream(
+                List<Msg> messages,
+                List<ToolSchema> tools,
+                GenerateOptions options) {
+            this.tools.set(List.copyOf(tools));
+            return Flux.just(
+                    ChatResponse.builder()
+                            .id("skill-loader-regression")
+                            .content(List.of(TextBlock.builder().text("ok").build()))
+                            .build(),
+                    ChatResponse.builder()
+                            .id("skill-loader-regression")
+                            .content(List.of())
+                            .finishReason("stop")
+                            .build());
+        }
+
+        @Override
+        public String getModelName() {
+            return "skill-loader-regression";
+        }
+
+        List<ToolSchema> tools() {
+            return tools.get();
+        }
+
+        @Override
+        public void close() {
         }
     }
 }
