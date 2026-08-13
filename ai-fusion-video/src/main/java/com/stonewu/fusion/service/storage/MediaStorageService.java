@@ -93,6 +93,23 @@ public class MediaStorageService {
         return strategy.storeFile(filePath, subDir, extension, config);
     }
 
+    /**
+     * 删除当前默认存储后端管理的文件。
+     *
+     * <p>外部 URL 或不属于当前存储配置的 URL 不会被删除。</p>
+     *
+     * @param storedUrl 已持久化文件的访问 URL
+     * @return 确认删除成功时返回 true，否则返回 false
+     */
+    public boolean deleteStoredFile(String storedUrl) {
+        if (StrUtil.isBlank(storedUrl)) {
+            return false;
+        }
+        StorageConfig config = storageConfigService.getDefaultConfig();
+        StorageStrategy strategy = resolveStrategy(config);
+        return strategy.delete(storedUrl, config);
+    }
+
     private StorageStrategy resolveStrategy(StorageConfig config) {
         Map<String, StorageStrategy> map = getStrategyMap();
 

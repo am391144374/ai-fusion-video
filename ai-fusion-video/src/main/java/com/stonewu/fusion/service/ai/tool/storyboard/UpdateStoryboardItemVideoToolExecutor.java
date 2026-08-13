@@ -8,6 +8,7 @@ import com.stonewu.fusion.service.ai.ToolExecutionContext;
 import com.stonewu.fusion.service.ai.ToolExecutor;
 import com.stonewu.fusion.service.ai.tool.ToolResourceAccessGuard;
 import com.stonewu.fusion.service.storyboard.StoryboardService;
+import com.stonewu.fusion.service.storage.MediaStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,7 @@ public class UpdateStoryboardItemVideoToolExecutor implements ToolExecutor {
 
     private final StoryboardService storyboardService;
     private final ToolResourceAccessGuard accessGuard;
+    private final MediaStorageService mediaStorageService;
 
     @Override
     public String getToolName() {
@@ -88,6 +90,10 @@ public class UpdateStoryboardItemVideoToolExecutor implements ToolExecutor {
             }
 
             StoryboardItem item = accessGuard.requireStoryboardItem(itemId, context.getUserId());
+            String previousVideoUrl = item.getGeneratedVideoUrl();
+            boolean replacesExistingVideo = StrUtil.isNotBlank(previousVideoUrl)
+                    && StrUtil.isNotBlank(videoUrl)
+                    && !previousVideoUrl.equals(videoUrl);
 
             // 保存视频URL（promptOnly 模式下可能为空）
             if (StrUtil.isNotBlank(videoUrl)) {
@@ -107,6 +113,18 @@ public class UpdateStoryboardItemVideoToolExecutor implements ToolExecutor {
 
             storyboardService.updateItem(item);
 
+            boolean previousVideoDeleted = false;
+            if (replacesExistingVideo) {
+                try {
+                    previousVideoDeleted = mediaStorageService.deleteStoredFile(previousVideoUrl);
+                    if (!previousVideoDeleted) {
+                        log.warn("[update_storyboard_item_video] 旧视频不属于当前存储或文件不存在: itemId={}, url={}", itemId, previousVideoUrl);
+                    }
+                } catch (Exception deleteError) {
+                    log.error("[update_storyboard_item_video] 新视频已保存，但旧视频文件删除失败: itemId={}, url={}", itemId, previousVideoUrl, deleteError);
+                }
+            }
+
             log.info("[update_storyboard_item_video] 已更新分镜视频: itemId={}, videoUrl={}",
                     itemId, videoUrl);
 
@@ -114,7 +132,10 @@ public class UpdateStoryboardItemVideoToolExecutor implements ToolExecutor {
                     .set("status", "success")
                     .set("storyboardItemId", itemId)
                     .set("videoUrl", videoUrl)
-                    .set("message", "视频已保存到分镜条目")
+                    .set("previousVideoDeleted", previousVideoDeleted)
+                    .set("message", replacesExistingVideo && !previousVideoDeleted
+                            ? "新视频已保存，旧视频原文件未能删除，请检查服务日志"
+                            : "视频已保存到分镜条目")
                     .toString();
 
         } catch (Exception e) {

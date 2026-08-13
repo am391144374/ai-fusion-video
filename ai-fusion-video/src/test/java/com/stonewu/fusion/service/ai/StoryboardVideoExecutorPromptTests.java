@@ -44,4 +44,26 @@ class StoryboardVideoExecutorPromptTests {
         assertThat(prompt).contains("`videoPrompt` 必须使用英文", "<d>[Chinese] 原始台词</d>");
         assertThat(prompt).doesNotContain("使用**中文**自然语言叙述");
     }
+
+    @Test
+    void shouldReuseExistingVideoPromptWithoutOverwritingIt() throws IOException {
+        String executorPrompt;
+        try (InputStream input = new ClassPathResource(
+                "prompts/agents/storyboard-video-executor.system.md").getInputStream()) {
+            executorPrompt = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        assertThat(executorPrompt).contains(
+                "必须把已有 `videoPrompt` 原文作为最终提示词",
+                "禁止重新编写、翻译、润色、拼接或覆盖",
+                "update_storyboard_item_video(storyboardItemId, videoUrl)",
+                "不得传入 `videoPrompt`");
+        assertThat(executorPrompt).contains(
+                "`promptOnly: true` 时若已有提示词",
+                "也不调用 `update_storyboard_item_video`");
+        assertThat(executorPrompt).contains(
+                "只有 `videoPrompt` 为空或全为空白时，才执行后续提示词编写步骤",
+                "只省略对应素材参数，禁止因此改写已有提示词",
+                "非空则不生成、不更新，直接报告已跳过");
+    }
 }

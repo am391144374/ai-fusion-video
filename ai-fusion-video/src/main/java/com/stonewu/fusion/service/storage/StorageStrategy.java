@@ -47,4 +47,13 @@ public interface StorageStrategy {
      * @return 持久化后的可访问 URL
      */
     String storeFile(Path filePath, String subDir, String extension, StorageConfig config);
+
+    /**
+     * 删除由当前存储配置管理的文件。
+     *
+     * @param storedUrl 已持久化文件的访问 URL
+     * @param config    存储配置
+     * @return 文件属于当前存储且已删除时返回 true；不属于当前存储或文件不存在时返回 false
+     */
+    boolean delete(String storedUrl, StorageConfig config);
 }

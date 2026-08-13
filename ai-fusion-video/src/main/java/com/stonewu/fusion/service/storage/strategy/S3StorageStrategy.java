@@ -17,13 +17,18 @@ import okhttp3.ResponseBody;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -118,6 +123,57 @@ public class S3StorageStrategy implements StorageStrategy {
             log.info("[S3Storage] 文件已上传: provider={}, key={}", resolved.provider(), objectKey);
         }
         return storageUrlResolver.resolvePublicUrl(resolved, objectKey);
+    }
+
+    @Override
+    public boolean delete(String storedUrl, StorageConfig config) {
+        if (StrUtil.isBlank(storedUrl)) {
+            return false;
+        }
+        ResolvedS3StorageConfig resolved = configResolver.resolve(config);
+        String objectKey = resolveManagedObjectKey(resolved, storedUrl);
+        if (StrUtil.isBlank(objectKey)) {
+            return false;
+        }
+
+        S3Client s3 = s3ClientFactory.getClient(resolved);
+        s3.deleteObject(DeleteObjectRequest.builder()
+                .bucket(resolved.bucketName())
+                .key(objectKey)
+                .build());
+        log.info("[S3Storage] 文件已删除: provider={}, bucket={}, key={}",
+                resolved.provider(), resolved.bucketName(), objectKey);
+        return true;
+    }
+
+    private String resolveManagedObjectKey(ResolvedS3StorageConfig config, String storedUrl) {
+        try {
+            URI rootUri = URI.create(storageUrlResolver.resolvePublicUrl(config, ""));
+            URI storedUri = URI.create(storedUrl.trim());
+            if (!Objects.equals(rootUri.getScheme(), storedUri.getScheme())
+                    || !Objects.equals(rootUri.getAuthority(), storedUri.getAuthority())) {
+                return null;
+            }
+            String rootPath = rootUri.getRawPath();
+            String storedPath = storedUri.getRawPath();
+            if (storedPath == null || rootPath == null || !storedPath.startsWith(rootPath)) {
+                return null;
+            }
+            String encodedKey = storedPath.substring(rootPath.length());
+            String objectKey = URLDecoder.decode(encodedKey, StandardCharsets.UTF_8)
+                    .replace("\\", "/").replaceAll("^/+", "");
+            String configuredPrefix = StrUtil.isNotBlank(config.basePath())
+                    ? config.basePath().replace("\\", "/").replaceAll("^/+|/+$", "") + "/"
+                    : "";
+            if (objectKey.isBlank() || objectKey.contains("../")
+                    || (!configuredPrefix.isEmpty() && !objectKey.startsWith(configuredPrefix))) {
+                return null;
+            }
+            return objectKey;
+        } catch (IllegalArgumentException e) {
+            log.warn("[S3Storage] 无法识别待删除文件 URL: {}", storedUrl);
+            return null;
+        }
     }
 
     private void uploadBytes(ResolvedS3StorageConfig config, String objectKey, byte[] data, String contentType) {

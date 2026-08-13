@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
@@ -58,5 +59,55 @@ class S3StorageStrategyTests {
         assertThat(request.contentType()).isEqualTo("image/png");
         assertThat(url).startsWith("https://cdn.example.com/prefix/images/");
         assertThat(url).endsWith(".png");
+    }
+
+    @Test
+    void deletesObjectOwnedByCurrentStorageConfig() {
+        S3ClientFactory factory = mock(S3ClientFactory.class);
+        S3Client s3Client = mock(S3Client.class);
+        when(factory.getClient(any())).thenReturn(s3Client);
+        S3StorageStrategy strategy = new S3StorageStrategy(
+                new S3StorageConfigResolver(new StorageProviderRegistry()),
+                factory,
+                new StorageUrlResolver());
+        StorageConfig config = StorageConfig.builder()
+                .type("s3")
+                .provider("generic_s3")
+                .endpoint("http://s3.local")
+                .bucketName("bucket")
+                .accessKey("ak")
+                .secretKey("sk")
+                .basePath("prefix")
+                .customDomain("https://cdn.example.com")
+                .build();
+
+        boolean deleted = strategy.delete("https://cdn.example.com/prefix/videos/old.mp4", config);
+
+        assertThat(deleted).isTrue();
+        ArgumentCaptor<DeleteObjectRequest> requestCaptor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client).deleteObject(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().bucket()).isEqualTo("bucket");
+        assertThat(requestCaptor.getValue().key()).isEqualTo("prefix/videos/old.mp4");
+    }
+
+    @Test
+    void rejectsObjectFromForeignDomain() {
+        S3ClientFactory factory = mock(S3ClientFactory.class);
+        S3StorageStrategy strategy = new S3StorageStrategy(
+                new S3StorageConfigResolver(new StorageProviderRegistry()),
+                factory,
+                new StorageUrlResolver());
+        StorageConfig config = StorageConfig.builder()
+                .type("s3")
+                .provider("generic_s3")
+                .endpoint("http://s3.local")
+                .bucketName("bucket")
+                .accessKey("ak")
+                .secretKey("sk")
+                .customDomain("https://cdn.example.com")
+                .build();
+
+        assertThat(strategy.delete("https://foreign.example.com/videos/old.mp4", config)).isFalse();
+        verify(factory, never()).getClient(any());
     }
 }
