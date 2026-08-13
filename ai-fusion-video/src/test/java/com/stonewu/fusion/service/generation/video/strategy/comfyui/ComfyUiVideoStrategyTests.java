@@ -107,4 +107,20 @@ class ComfyUiVideoStrategyTests {
         verify(videoGenerationService).updateItem(item);
         verify(videoGenerationService).update(task);
     }
+
+    @Test
+    void pollUsesAtLeastSixtyMinuteTimeout() {
+        String promptId = UUID.randomUUID().toString();
+        model.setConfig("{\"comfyuiTimeoutMillis\":300000}");
+        ComfyUiJobResult job = new ComfyUiJobResult(
+                promptId, "completed", new ObjectMapper().createObjectNode(), null, null);
+        when(executor.waitForJob(context, promptId, 5_000L, 60L * 60L * 1_000L))
+                .thenReturn(job);
+        when(executor.storeOutputs(context, job)).thenReturn(List.of());
+        when(videoGenerationService.listItems(11L)).thenReturn(List.of());
+
+        strategy.poll(promptId, task);
+
+        verify(executor).waitForJob(context, promptId, 5_000L, 60L * 60L * 1_000L);
+    }
 }

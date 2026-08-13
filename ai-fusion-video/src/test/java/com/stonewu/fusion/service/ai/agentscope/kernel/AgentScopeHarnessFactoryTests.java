@@ -147,6 +147,34 @@ class AgentScopeHarnessFactoryTests {
     }
 
     @Test
+    void configuresSixtyMinuteModelAndToolExecutionTimeouts() {
+        AgentScopeV2Properties properties = new AgentScopeV2Properties();
+        properties.getExecution().setModelTimeout(Duration.ofMinutes(60));
+        properties.getExecution().setToolTimeout(Duration.ofMinutes(60));
+        AgentScopeHarnessFactory factory = new AgentScopeHarnessFactory(
+                ignored -> OwnedChatModel.owned(new CloseableModel()),
+                (ignored, toolkit) -> AgentKernelToolkitResources.none(),
+                mock(AgentStateStore.class),
+                mock(StateStoreFailureGuard.class),
+                recoveryBridge(),
+                new AgentScopeSkillRegistry(properties),
+                null,
+                properties);
+        AgentKernelKey key = AgentKernelKey.create(
+                "writer", "model-a", "prompt-v1", List.of(), "afv-tools-v1");
+
+        try (AgentKernelResource resource = factory.create(
+                spec(key, List.of(), Set.of(), "afv-tools-v1"))) {
+            assertThat(resource.agent().getDelegate().getModelExecutionConfig().getTimeout())
+                    .isEqualTo(Duration.ofMinutes(60));
+            assertThat(resource.agent().getDelegate().getToolExecutionConfig().getTimeout())
+                    .isEqualTo(Duration.ofMinutes(60));
+            assertThat(resource.agent().getDelegate().getToolExecutionConfig().getMaxAttempts())
+                    .isOne();
+        }
+    }
+
+    @Test
     void configuresConversationCompactionAtEightyPercentOfTheModelWindow() {
         var configured = AgentScopeHarnessFactory.compactionConfig(262_144);
 
