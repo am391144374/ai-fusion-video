@@ -7,11 +7,13 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Paths;
+import java.time.Duration;
 
 /**
  * Web MVC 配置
@@ -67,6 +69,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         log.info("[WebMvcConfig] 静态资源映射: /media/** -> {}", resourceLocation);
 
         registry.addResourceHandler("/media/**")
-                .addResourceLocations(resourceLocation);
+                .addResourceLocations(resourceLocation)
+                // 图片更新后会使用新地址，可安全复用同一地址的本地缓存。
+                .setCacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePublic().immutable());
     }
 }

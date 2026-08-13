@@ -40,9 +40,27 @@ class StoryboardVideoExecutorPromptTests {
                 "overall_soundscape:",
                 "non_diegetic_music:");
 
-        // 步骤四：固定 H3 的英文说明和原始语言对白约束，避免退回原来的中文自由格式。
-        assertThat(prompt).contains("`videoPrompt` 必须使用英文", "<d>[Chinese] 原始台词</d>");
-        assertThat(prompt).doesNotContain("使用**中文**自然语言叙述");
+        // 步骤四：固定“英文 H3 标识 + 中文正文”的输出约束。
+        assertThat(prompt).contains(
+                "固定 H3 标识保持英文",
+                "所有字段正文、镜头描述、运镜、声音、配乐、参考关系说明和首尾帧对齐说明必须使用中文",
+                "<d>[Chinese] 原始台词</d>");
+        assertThat(prompt).contains(
+                "目标视频在 0.00 秒处完整参考 <Picture 1>（来自 [Shot 1]）",
+                "<Picture 1>（来自 [Shot 1]）对应目标视频 0.00 秒；<Picture 2>（来自 [Shot N]）",
+                "<Picture 1>（来自 [Shot N]）对应目标视频 S.SS 秒");
+        assertThat(prompt).doesNotContain(
+                "`videoPrompt` 必须使用英文",
+                "Cinematic, high-quality visual detail",
+                "明确写出 `Cinematic`");
+
+        // 步骤五：固定同场次前后镜头的连续性处理及冲突优先级。
+        assertThat(prompt).contains(
+                "目标镜头的前一项是上一镜头，后一项是下一镜头",
+                "开场承接上一镜头",
+                "结尾衔接下一镜头",
+                "显式首尾帧 > 当前镜头剧本字段 > 相邻镜头上下文",
+                "上一镜头和下一镜头不得作为额外 `[Shot N]` 写入当前视频时间线");
     }
 
     @Test
