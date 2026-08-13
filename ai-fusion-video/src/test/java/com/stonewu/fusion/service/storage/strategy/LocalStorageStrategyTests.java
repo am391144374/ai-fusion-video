@@ -52,4 +52,5 @@ class LocalStorageStrategyTests {
 
         assertThat(deleted).isFalse();
         assertThat(video).exists();
+    }
 }
