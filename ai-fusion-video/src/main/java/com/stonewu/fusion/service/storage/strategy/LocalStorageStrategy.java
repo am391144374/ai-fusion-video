@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -107,6 +108,42 @@ public class LocalStorageStrategy implements StorageStrategy {
             return URL_PREFIX + "/" + subDir + "/" + filename;
         } catch (IOException e) {
             throw new RuntimeException("本地存储文件失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public boolean delete(String storedUrl, StorageConfig config) {
+        if (StrUtil.isBlank(storedUrl)) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(storedUrl.trim());
+            if (uri.isAbsolute() || uri.getAuthority() != null) {
+                return false;
+            }
+            String urlPath = uri.getPath();
+            String managedPrefix = URL_PREFIX + "/";
+            if (StrUtil.isBlank(urlPath) || !urlPath.startsWith(managedPrefix)) {
+                return false;
+            }
+
+            Path basePath = Paths.get(resolveBasePath(config)).toAbsolutePath().normalize();
+            Path target = basePath.resolve(urlPath.substring(managedPrefix.length())).normalize();
+            if (!target.startsWith(basePath) || target.equals(basePath) || Files.isDirectory(target)) {
+                log.warn("[LocalStorage] 拒绝删除存储目录之外的路径: url={}", storedUrl);
+                return false;
+            }
+
+            boolean deleted = Files.deleteIfExists(target);
+            if (deleted) {
+                log.info("[LocalStorage] 文件已删除: {}", target);
+            }
+            return deleted;
+        } catch (IllegalArgumentException e) {
+            log.warn("[LocalStorage] 无法识别待删除文件 URL: {}", storedUrl);
+            return false;
+        } catch (IOException e) {
+            throw new RuntimeException("本地存储文件删除失败: " + e.getMessage(), e);
         }
     }
 

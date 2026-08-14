@@ -12,19 +12,25 @@
    - 目标镜头的 `firstFrameImageUrl` 是首帧；`lastFrameImageUrl` 是尾帧。
    - 从 `characterRefs`、`propRefs`、`sceneRef` 收集有 `imageUrl` 的子资产图，顺序固定为角色 → 道具 → 场景，最多 5 张；项目风格参考图存在时排在第 1 位。
    - `referenceImageUrls` 仅承载风格、角色、道具和场景一致性，不得把首帧或尾帧混入其中。
-4. **识别对白**：读取镜头的 `dialogue`，识别说话角色、画外音和台词原文；不能遗漏台词或擅自翻译台词。
-5. **查询模型能力并裁剪素材**：调用 `get_generation_model_capabilities`。
+4. **优先复用已有提示词**：检查目标镜头的 `videoPrompt`，去除首尾空白后非空即视为已有提示词。
+   - 普通生成视频模式下，必须把已有 `videoPrompt` 原文作为最终提示词，禁止重新编写、翻译、润色、拼接或覆盖；跳过提示词编写步骤，继续查询模型能力和整理参考素材后直接调用 `generate_video`。
+   - 复用已有提示词生成成功后，调用 `update_storyboard_item_video(storyboardItemId, videoUrl)`，不得传入 `videoPrompt`，确保数据库中的原提示词不被覆盖。
+   - `promptOnly: true` 时若已有提示词，不调用 `generate_video`，也不调用 `update_storyboard_item_video`，直接报告该镜头已有提示词并跳过。
+   - 只有 `videoPrompt` 为空或全为空白时，才执行后续提示词编写步骤。
+5. **识别对白**：仅在需要编写新提示词时，读取镜头的 `dialogue`，识别说话角色、画外音和台词原文；不能遗漏台词或擅自翻译台词。
+6. **查询模型能力并裁剪素材**：调用 `get_generation_model_capabilities`。
    - 仅传当前模型支持的 `firstFrameImageUrl`、`lastFrameImageUrl`、`referenceImageUrls`、`referenceVideoUrls`、`referenceAudioUrls`。
    - 不支持首帧或尾帧时，不传对应 URL，改在提示词中完整描述开场或结尾状态。
    - 模型明确要求首尾帧与多模态参考互斥时，优先保留首帧/尾帧，并停止传入 `referenceImageUrls`；被裁剪的素材必须改写为文字特征。
    - 禁止对不支持的参数做重复重试。
-6. **选择 H3 输入模式并生成提示词**：只能依据第 5 步实际保留下来、即将传给 `generate_video` 的素材选择模式，并按第 3 节将相邻镜头连续性写入当前镜头正文：
+   - 复用已有 `videoPrompt` 时，如有素材因模型能力被裁剪，只省略对应素材参数，禁止因此改写已有提示词。
+7. **选择 H3 输入模式并生成提示词**：仅当目标镜头没有已有提示词时执行。只能依据第 6 步实际保留下来、即将传给 `generate_video` 的素材选择模式：
    - 有 `referenceImageUrls`、`referenceVideoUrls` 或 `referenceAudioUrls`：使用 **Ref2VA** 完整参考模式。
    - 无多模态参考，且同时有首帧和尾帧：使用 **FL2VA**。
    - 无多模态参考，仅有首帧：使用 **I2VA**。
    - 无多模态参考，仅有尾帧：使用 **L2VA**。
    - 没有任何参考素材：使用 **T2VA**。
-7. **调用生成与更新**：调用 `generate_video(prompt, firstFrameImageUrl, lastFrameImageUrl, referenceImageUrls, ratio, duration)`；比例默认 `16:9`，时长直接传目标镜头的时长。随后调用 `update_storyboard_item_video(storyboardItemId, videoUrl, videoPrompt)` 保存生成结果和完整提示词。
+8. **调用生成与更新**：调用 `generate_video(prompt, firstFrameImageUrl, lastFrameImageUrl, referenceImageUrls, ratio, duration)`；比例默认 `16:9`，时长直接传目标镜头的时长。新编写提示词时，随后调用 `update_storyboard_item_video(storyboardItemId, videoUrl, videoPrompt)` 保存生成结果和完整提示词；复用已有提示词时只更新 `videoUrl`。
 
 ## 2. H3 输出语言与通用规则
 
@@ -122,4 +128,4 @@ non_diegetic_music: ...
 
 ## 6. promptOnly 模式
 
-当输入消息包含 `promptOnly: true` 时，正常完成前述素材查询、能力裁剪、H3 模式选择和提示词编写，但不调用 `generate_video`。只调用 `update_storyboard_item_video(storyboardItemId, videoPrompt)` 保存完整 H3 提示词，并说明本次为仅提示词模式。
+当输入消息包含 `promptOnly: true` 时，先检查目标镜头已有的 `videoPrompt`：非空则不生成、不更新，直接报告已跳过；为空或全为空白时，正常完成前述素材查询、能力裁剪、H3 模式选择和提示词编写，但不调用 `generate_video`，只调用 `update_storyboard_item_video(storyboardItemId, videoPrompt)` 保存完整 H3 提示词，并说明本次为仅提示词模式。

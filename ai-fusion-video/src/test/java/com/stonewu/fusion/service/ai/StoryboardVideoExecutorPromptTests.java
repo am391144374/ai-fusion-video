@@ -62,4 +62,26 @@ class StoryboardVideoExecutorPromptTests {
                 "显式首尾帧 > 当前镜头剧本字段 > 相邻镜头上下文",
                 "上一镜头和下一镜头不得作为额外 `[Shot N]` 写入当前视频时间线");
     }
+
+    @Test
+    void shouldReuseExistingVideoPromptWithoutOverwritingIt() throws IOException {
+        String executorPrompt;
+        try (InputStream input = new ClassPathResource(
+                "prompts/agents/storyboard-video-executor.system.md").getInputStream()) {
+            executorPrompt = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        assertThat(executorPrompt).contains(
+                "必须把已有 `videoPrompt` 原文作为最终提示词",
+                "禁止重新编写、翻译、润色、拼接或覆盖",
+                "update_storyboard_item_video(storyboardItemId, videoUrl)",
+                "不得传入 `videoPrompt`");
+        assertThat(executorPrompt).contains(
+                "`promptOnly: true` 时若已有提示词",
+                "也不调用 `update_storyboard_item_video`");
+        assertThat(executorPrompt).contains(
+                "只有 `videoPrompt` 为空或全为空白时，才执行后续提示词编写步骤",
+                "只省略对应素材参数，禁止因此改写已有提示词",
+                "非空则不生成、不更新，直接报告已跳过");
+    }
 }
