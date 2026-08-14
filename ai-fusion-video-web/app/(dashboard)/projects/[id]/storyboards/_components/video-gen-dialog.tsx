@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Video, X, ImageIcon, Check, Film, FileText } from "lucide-react";
+import { Video, X, ImageIcon, Check, Film, FileText, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveMediaUrl } from "@/lib/api/client";
 import type { StoryboardItem } from "@/lib/api/storyboard";
+import { Button } from "@/components/ui/button";
 
 interface VideoGenDialogProps {
   open: boolean;
@@ -12,6 +13,8 @@ interface VideoGenDialogProps {
   /** 分镜条目列表 */
   items: StoryboardItem[];
   onConfirm: (selectedItemIds: number[], promptOnly?: boolean) => void;
+  /** 不经过 Agent，直接提交视频生成任务 */
+  onDirectConfirm: (selectedItemIds: number[]) => void;
 }
 
 export function VideoGenDialog({
@@ -19,6 +22,7 @@ export function VideoGenDialog({
   onClose,
   items,
   onConfirm,
+  onDirectConfirm,
 }: VideoGenDialogProps) {
   const defaultSelected = useMemo(
     () => new Set(items.map((item) => item.id)),
@@ -48,6 +52,11 @@ export function VideoGenDialog({
 
   const handleConfirm = (promptOnly?: boolean) => {
     onConfirm(Array.from(selected), promptOnly);
+    onClose();
+  };
+
+  const handleDirectConfirm = () => {
+    onDirectConfirm(Array.from(selected));
     onClose();
   };
 
@@ -208,6 +217,15 @@ export function VideoGenDialog({
           >
             取消
           </button>
+          <Button
+            variant="video"
+            size="sm"
+            onClick={handleDirectConfirm}
+            disabled={selected.size === 0}
+          >
+            <Zap />
+            直接生成 ({selected.size})
+          </Button>
           <button
             onClick={() => handleConfirm(true)}
             disabled={selected.size === 0}

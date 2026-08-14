@@ -38,6 +38,7 @@ import type { StoryboardItem, Storyboard, StoryboardFrameType, StoryboardScene }
 import { BatchGenDialog } from "./batch-gen-dialog";
 import type { AssetItemWithInfo, SelectedAssetItem } from "./batch-gen-dialog";
 import { VideoGenDialog } from "./video-gen-dialog";
+import { DirectVideoGenerationDialog } from "./direct-video-generation-dialog";
 import { FrameReferenceSection } from "./storyboard-frame-reference-dialog";
 import { usePipelineStore } from "@/lib/store/pipeline-store";
 
@@ -551,6 +552,8 @@ function SceneAssetPanel({
   });
   const [showBatchGen, setShowBatchGen] = useState(false);
   const [showVideoGen, setShowVideoGen] = useState(false);
+  const [showDirectVideoGen, setShowDirectVideoGen] = useState(false);
+  const [directVideoItems, setDirectVideoItems] = useState<StoryboardItem[]>([]);
 
   // 直接从分镜 items 聚合子资产 ID（characterIds / sceneAssetItemId / propIds）
   // 批量查子资产详情，附带主资产名称做辅助展示
@@ -716,6 +719,12 @@ function SceneAssetPanel({
     setNotificationOpen(true);
   };
 
+  /** 直接生成视频确认：只准备选中的分镜，实际生成严格由进度弹窗按顺序提交。 */
+  const handleDirectVideoGenConfirm = (selectedItemIds: number[]) => {
+    setDirectVideoItems(sceneGroup.items.filter((item) => selectedItemIds.includes(item.id)));
+    setShowDirectVideoGen(true);
+  };
+
   return (
     <div className="p-4 space-y-4">
       {/* 标题 */}
@@ -836,6 +845,16 @@ function SceneAssetPanel({
         onClose={() => setShowVideoGen(false)}
         items={sceneGroup.items}
         onConfirm={handleVideoGenConfirm}
+        onDirectConfirm={handleDirectVideoGenConfirm}
+      />
+
+      <DirectVideoGenerationDialog
+        open={showDirectVideoGen}
+        projectId={projectId}
+        items={directVideoItems}
+        assetItems={allItems}
+        onClose={() => setShowDirectVideoGen(false)}
+        onCompleted={() => router.refresh()}
       />
     </div>
   );
